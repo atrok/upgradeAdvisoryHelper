@@ -4,6 +4,10 @@ var Docxtemplater = require('docxtemplater');
 var fs = require('fs');
 var path = require('path');
 
+var EventEmitter=require('events');
+
+class DocCreate extends EventEmitter {};
+
 //Load the docx file as a binary
 var content = fs
     .readFileSync(path.resolve(__dirname, 'input.docx'), 'binary');
@@ -13,7 +17,8 @@ var zip = new JSZip(content);
 var doc = new Docxtemplater();
 doc.loadZip(zip);
 
-var createDocx = function(res){
+createDocx = function(res){
+    return new Promise((resolve,reject)=>{
 
 //set the templateVariables
 doc.setData(res);
@@ -31,15 +36,26 @@ catch (error) {
     }
     console.log(JSON.stringify({error: e}));
     // The error thrown here contains additional information when logged with JSON.stringify (it contains a property object).
-    throw error;
+    reject(error);
 }
 
 var buf = doc.getZip()
              .generate({type: 'nodebuffer'});
 
 // buf is a nodejs buffer, you can either write it to a file or do anything else with it.
-fs.writeFileSync(path.resolve(__dirname, 'output.docx'), buf);
+var filename=generateFilename('output','docx');
+console.log(filename);
 
+fs.writeFileSync(path.resolve(__dirname, filename ), buf);
+
+resolve(filename);
+
+});
+}
+
+function generateFilename(prefix, ext){
+    var timeInMs = Date.now();
+    return prefix+'_'+timeInMs+'.'+ext;
 }
 
 exports.createDocx=createDocx;

@@ -2,10 +2,13 @@
 
 var cradle = require('./cradle_setup');
 var docx=require('./docx');
-var couchdb=require('./create_views');
+var couchdb=require('./couchdb');
 var parser=require('./preparing');
+var html=require('./html');
+const {ArrayResult}=require('./result');
 
-var start = async (response,components,recreateViews)=>{
+var start = (response,components,recreateViews)=>{
+  return new Promise(async(resolve,reject)=>{
  try{
 
   await couchdb.initialize(recreateViews, response);//set true if need to recreate view
@@ -23,13 +26,16 @@ var start = async (response,components,recreateViews)=>{
     };
 
   var component=parser.findComponent(obj,components[i].APPLICATION_TYPE);
+ 
 
-  var new_releases=await couchdb.select('test/features-by-release', opts,response);
-
+  var new_releases=await couchdb.select('test/features-by-release', opts,null);
+  components[i].RECORDS_FOUND=new_releases.rows.length;
 
 
    if(new_releases.rows.length===0){
     console.log('Can\'t find '+components[i].APPLICATION_TYPE+' among available release notes');  
+    components[i].DELTA_SAME='undefuned';
+    components[i].DELTA_LATEST='undefined';
     }else{
 
      component.current_release={
@@ -43,36 +49,38 @@ var start = async (response,components,recreateViews)=>{
      startkey: [components[i].APPLICATION_TYPE,components[i].RELEASE,component.current_release.family],
      endkey: [components[i].APPLICATION_TYPE,{},component.current_release.family],
      group: true},
-    response);
+    null);
 
     component.delta_same_family=delta_same_family_res.rows.length;
-
+    components[i].DELTA_SAME=component.delta_same_family;
+    
     var delta_latest_release_res=await couchdb.select('test/group-releases-by-family',{
      startkey: [components[i].APPLICATION_TYPE,components[i].RELEASE,component.current_release.family],
      endkey: [components[i].APPLICATION_TYPE,{},{}],
      group: true},
-    response);
+    null);
 
     component.delta_latest_release=delta_latest_release_res.rows.length;
+    components[i].DELTA_LATEST=component.delta_latest_release;
+
     obj=parser.processed_obj(new_releases,obj);
    }
   };
 
-  docx.createDocx(obj, function (err, res) {
-    if (err) {
-      //response.write(err);
-      console.log(err);
-      throw new Error(err);
-    };
-    console.log(res);
-  });
+  var doc_result=new ArrayResult(components);
+  html.displayTableResults(response, doc_result);
 
-  return obj;
+  var filename= await docx.createDocx(obj);
+
+  var link='<a href=\'/getFile?filename='+filename+'\'>'+filename+'</a>';
+
+  resolve(link);
 
  }catch(e){
   console.log(e.stack);
-  throw e;
+  reject(e);
  };
+})
 };
 
 module.exports={start};

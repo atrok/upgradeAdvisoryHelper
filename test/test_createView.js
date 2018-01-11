@@ -1,4 +1,4 @@
-var couchdb=require('../create_views');
+var couchdb=require('../couchdb');
 
 var b= async ()=>{
     var db=couchdb.getDBConnection();

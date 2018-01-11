@@ -36,9 +36,10 @@ var http = require('http');
 var oracledb = require('oracledb');
 var dbConfig = require('./dbconfig.js');
 var httpPort = 7000;
-var docProcessing=require('./query_view');
+var docProcessing=require('./docProcessing');
 const URL=require('url');
 var html=require('./html');
+const {OracleDBResult,CouchDBResult, DocProcessingResult} = require('./result');
 
 // Main entry point.  Creates a connection pool, on callback creates an
 // HTTP server that executes a query based on the URL parameter given.
@@ -66,29 +67,34 @@ function init(response) {
       // poolAlias: 'myalias' // could set an alias to allow access to the pool via a name
       // stmtCacheSize: 30 // number of statements that are cached in the statement cache of each connection
     },
-    function(err, pool,  resolve, reject) {
+    function(err, pool) {
       if (err) {
         response.write("createPool() error: " + err.message);
         reject(new Error(err));
         return;
       }
 
+      var resolve=resolve;
+      var reject=reject;
       
-      handleRequest(response, pool, resolve, reject);
+      handleRequest(response, pool);
+
+      
       }
   );
  })
 }
 
-function handleRequest(response, pool, resolve, reject) {
+function handleRequest(response, pool) {
 
+  /*
   html.htmlHeader(
     response,
     "Genesys Upgrade Advisory template tool",
     "Example using node.js to create docx files based on predefined docx template file"
   );
 
-  /*
+  
   if (deptid != parseInt(deptid)) {
     handleError(
       response,
@@ -102,9 +108,10 @@ function handleRequest(response, pool, resolve, reject) {
 
 // Checkout a connection from the pool
   pool.getConnection(function(err, connection) {
+
     if (err) {
       html.handleError(response, "getConnection() error", err);
-      reject(new Error(err));
+      //reject(new Error(err));
       return;
     }
 
@@ -114,7 +121,7 @@ function handleRequest(response, pool, resolve, reject) {
     connection.execute(
         'SELECT * FROM view_app_versions',
       //[deptid], // bind variable value
-      async function(err, result) {
+      async function(err, result, resolve,reject) {
         if (err) {
           connection.close(function(err) {
             if (err) {
@@ -127,22 +134,26 @@ function handleRequest(response, pool, resolve, reject) {
           reject(new Error(err));
           return;
         }
+        
+        //var ora_result=new OracleDBResult(result);
 
-        html.displayTableResults(response, result);
+        //html.displayTableResults(response, ora_result);
 
         var res=await generateDocx(response,result,'false');
         
         html.displayResults(response, res, null);
 
         /* Release the connection back to the connection pool */
-        connection.close(function(err) {
+        connection.close(function(err, resolve, res) {
           if (err) {
             html.handleError(response, "normal release() error", err);
           } else {
             html.htmlFooter(response);
           }
-          resolve('Done!');
+          
+          //resolve(res);
         });
+
       }
     );
   });
@@ -153,23 +164,29 @@ function handleRequest(response, pool, resolve, reject) {
 
 // Generate DOCX file for resultset
 
-function generateDocx(response,result,recreateViews){
+function generateDocx(response, result, recreateViews) {
 
- return new Promise(async(resolve,reject)=>{
-  var obj=[];
-  // Rows
-  for (var row = 0; row < result.rows.length; row++) {
-    obj[row]={};
-    for (col = 0; col < result.rows[row].length; col++) {
-        var t={[result.metaData[col].name]:result.rows[row][col]};
-        obj[row]=fill_data(obj[row],t);
+  return new Promise(async (resolve, reject) => {
+    var obj = [];
+    // Rows
+    try {
+      for (var row = 0; row < result.rows.length; row++) {
+        obj[row] = {};
+        for (col = 0; col < result.rows[row].length; col++) {
+          var t = { [result.metaData[col].name]: result.rows[row][col] };
+          obj[row] = fill_data(obj[row], t);
+        }
+      }
+      var res = await docProcessing.start(response, obj, recreateViews);
+      //response.write("<h1>obj</h1>");
+
+      resolve(res);
+    } catch (err) {
+      console.log(err.stack);
+      reject(err);
+
     }
-  }
-  var obj=await docProcessing.start(response,obj, recreateViews);
-  response.write(obj);
-
-  resolve("<a href='/output.docx'>Done!</a>");
- });
+  });
 }
 
   /*

@@ -18,7 +18,7 @@ class Logger{
         console.log(processed);
 
         if(typeof this.response!=='undefined') 
-           this.response.write(processed+"\n");
+           this.response.write(processed.replace('\t', '&nbsp;').replace('\n', '<br/>')+'<br/>');
         this.sb.flush();
    
    };
