@@ -4,6 +4,7 @@ var components = require('./queries/groupbycomponents');
 var html = require('./html');
 var fs = require('fs');
 var path = require('path');
+var docProcessing = require('./docProcessing');
 const {OracleDBResult,CouchDBResult, DocProcessingResult} = require('./result');
 
 function start(response) {
@@ -45,6 +46,25 @@ async function prepareAdvisory(response) {
     await upgradeAdvisory.init(response);
 
     //html.htmlFooter(response);
+
+}
+
+async function testPrepareAdvisory(response, args) {
+    console.log("Request handler 'prepareAdvisory' was called.");
+    response.writeHead(200, { "Content-Type": "text/plain" });
+
+    html.htmlHeader(response, 'Upgrade Advisory Helper', 'UAHelper: Test Upgrade Advisory Document');
+    html.htmlMenu(response);
+
+    var component=[{
+        APPLICATION_TYPE: args.apptype||"Interaction Server",
+        RELEASE: args.release||"8.5.103.22"
+    }]
+    var res=await docProcessing.start(response, component);
+
+    html.displayResults(response,res);
+
+    html.htmlFooter(response);
 
 }
 
@@ -113,3 +133,4 @@ exports.recreateViews = recreateViews;
 exports.prepareAdvisory = prepareAdvisory;
 exports.getComponents = getComponents;
 exports.getFile = getFile;
+exports.testPrepareAdvisory=testPrepareAdvisory;

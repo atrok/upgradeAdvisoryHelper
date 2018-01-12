@@ -4,10 +4,6 @@ var Docxtemplater = require('docxtemplater');
 var fs = require('fs');
 var path = require('path');
 
-var EventEmitter=require('events');
-
-class DocCreate extends EventEmitter {};
-
 //Load the docx file as a binary
 var content = fs
     .readFileSync(path.resolve(__dirname, 'input.docx'), 'binary');

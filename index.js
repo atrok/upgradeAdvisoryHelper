@@ -10,5 +10,6 @@ handle["/recreateViews"]= requestHandlers.recreateViews;
 handle["/prepareAdvisory"]=requestHandlers.prepareAdvisory;
 handle["/getComponents"]=requestHandlers.getComponents;
 handle["/getFile"]=requestHandlers.getFile;
+handle["/testPrepareAdvisory"]=requestHandlers.testPrepareAdvisory;
 
 server.start(router.route, handle);

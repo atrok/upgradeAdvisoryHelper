@@ -9,9 +9,8 @@ cradle.setup({
     host: '172.21.80.22',
     port: 5984,
     cache: true,
-    raw: true,
-    forceSave: true,
-    auth: { username: 'admin', password: 'Genesys#1'}
+    raw: false,
+    forceSave: true
   });
 
 const view_all='all';
@@ -89,7 +88,7 @@ var view_names= [
       map: function (doc) {
           if(doc.release){
             var family=doc.release.slice(0,3);
-          emit([doc.component,doc.release,family],1);
+          emit([doc.component,doc.release,family,doc.release_date, doc.release_type],1);
       }
       },
       reduce: function(keys, values) {
@@ -108,7 +107,7 @@ function check_views(response,create_view){
 
     var db = new(cradle.Connection)().database(database_name);
 
-    logger.log( "Start working with DB "+database_name);
+    logger.log( "Start working with DB"+database_name);
 
     db.get('_all_docs', {
       startkey:"\"_design\"",
@@ -128,7 +127,8 @@ function check_views(response,create_view){
                 var revision;
                 try{
                   res.rows.forEach(function(row, key) {
-                    logger.log( 'View id: '+row.id+', rev: '+row.value.rev);
+                    logger.log( 'Design doc id: '+row.id+', rev: '+row.value.rev);
+                    if(row.id==='_design/test'){
                     var views=Object.getOwnPropertyNames(row.doc.views);
                     view_names.forEach(function(value){
                       if(views.find(x=>x==value.name)) {
@@ -136,10 +136,11 @@ function check_views(response,create_view){
                         logger.log( "'"+value.name+"' function, adjusted mask:"+parseInt(mask).toString(2));
                       }
                     });
-
                     revision=row.value.rev;
+                  }
+                    
                 });
-                var p=await create_view(logger,mask,revision);// create views using  one object/map
+                var p=await create_view(logger,mask,(revision)?revision:'');// create views using  one object/map
                 resolve(p);
               }catch(err){
                 logger.log(err.stack);
@@ -169,9 +170,11 @@ function create_view(logger,mask,revision){
       Object.assign(func,value.function);
     });
 
-      var db=new(cradle.Connection)().database(database_name);
+      var db=getDBConnection();
       logger.log("Creating new view");
-      db.save('_design/test', (revision) ? revision: '', func , function (err, res) {
+      var rev=(revision) ? revision: null;
+
+      db.save('_design/test', rev, func , function (err, res) {
       //db.save('_design/test', func , function (err, res) {
         if(err){
           logger.log(err);
@@ -241,7 +244,7 @@ function initialize(recreate, response){
 };
 
  function getDBConnection(){
-   return new(cradle.Connection)().database(database_name); 
+   return new(cradle.Connection)({auth: { username: 'admin', password: 'Genesys#1'}}).database(database_name); 
  };
 
 

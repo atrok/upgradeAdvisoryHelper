@@ -47,7 +47,10 @@ function htmlFooter(response) {
 
 function htmlMenu(response) {
   response.write('<div class=\'menu\'>' +
+    '<p><a title="Home" href="/">Home</a></p>'+  
     '<p><a title="Start Upgrade Advisory document preparation" href="/prepareAdvisory">Start Upgrade Advisory document creation</a></p>' +
+    '<p><a title="Test Upgrade Advisory document preparation" href="/testPrepareAdvisory">Test Upgrade Advisory document creation</a></br>'+
+    'use ?apptype=<your apptype>&release=<your release> as a query to generate report for single component only</p>'+
     '<p><a title="Recreate Couch DB views" href="/recreateViews">Recreate Couch DB views</a></p>' +
     '<p><a title="Get list of available components" href="/getComponents">Get list of available components</a></p>' +
     '</div>');

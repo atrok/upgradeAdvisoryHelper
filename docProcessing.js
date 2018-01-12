@@ -18,6 +18,7 @@ var start = (response,components,recreateViews)=>{
   var obj={components:[]};
 
  for(var i=0; i<components.length; i++){
+   try{
   var opts = {
     startkey: [components[i].APPLICATION_TYPE,components[i].RELEASE],
       endkey: [components[i].APPLICATION_TYPE, {}],
@@ -45,15 +46,27 @@ var start = (response,components,recreateViews)=>{
       release_type:new_releases.rows[0].value.release_type
      };
 
+     // Populate latest release of the same family info
     var delta_same_family_res=await couchdb.select('test/group-releases-by-family',{
-     startkey: [components[i].APPLICATION_TYPE,components[i].RELEASE,component.current_release.family],
-     endkey: [components[i].APPLICATION_TYPE,{},component.current_release.family],
+     startkey: [components[i].APPLICATION_TYPE,components[i].RELEASE,component.current_release.family,{},{}],
+     endkey: [components[i].APPLICATION_TYPE,{},component.current_release.family,{},{}],
      group: true},
     null);
 
     component.delta_same_family=delta_same_family_res.rows.length;
     components[i].DELTA_SAME=component.delta_same_family;
-    
+
+    var ind=delta_same_family_res.rows.length-1;
+    var rows=delta_same_family_res.rows;
+
+    component.latest_same_family={
+      release:rows[ind].key[1],
+      family:rows[ind].key[2],
+      date:rows[ind].key[3],
+      release_type:rows[ind].key[4]
+    }
+
+    // Populate delta of latest release of the latest family 
     var delta_latest_release_res=await couchdb.select('test/group-releases-by-family',{
      startkey: [components[i].APPLICATION_TYPE,components[i].RELEASE,component.current_release.family],
      endkey: [components[i].APPLICATION_TYPE,{},{}],
@@ -65,6 +78,9 @@ var start = (response,components,recreateViews)=>{
 
     obj=parser.processed_obj(new_releases,obj);
    }
+  }catch(err){
+    reject(err);
+  }
   };
 
   var doc_result=new ArrayResult(components);
