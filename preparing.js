@@ -17,7 +17,7 @@ var processed_obj = function (res, obj) {
       family: doc.family,
       date: doc.release_date,
       release_type: doc.release_type,
-      restricted: (doc.restricted == 'yes') ? true : false,
+      restricted: (doc.restricted) ? true : false,
       aix: (doc.aix == 'X') ? true : false,
       linux: (doc.linux == 'X') ? true : false,
       solaris: (doc.solaris == 'X') ? true : false,
@@ -73,12 +73,12 @@ var findComponent = function (obj, component_name) {
     index = obj.components.findIndex(value => value.component === component_name);
     if (index == -1) {// no elements found in array, adding a new one
       index = obj.components.length;
-      obj.components[index] = { component: component_name };
+      obj.components[index] = { component: component_name, current_release: [] };
     };
 
     return obj.components[index];
   } else {
-    return obj.components[0] = { component: component_name };
+    return obj.components[0] = { component: component_name, current_release: []};
   };
 };
 

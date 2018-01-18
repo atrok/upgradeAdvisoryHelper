@@ -36,128 +36,89 @@ var http = require('http');
 var oracledb = require('oracledb');
 var dbConfig = require('./dbconfig.js');
 var httpPort = 7000;
-var docProcessing=require('./docProcessing');
-const URL=require('url');
-var html=require('./html');
-const {OracleDBResult,CouchDBResult, DocProcessingResult} = require('./result');
+var docProcessing = require('./docProcessing');
+const URL = require('url');
+var html = require('./html');
+const { OracleDBResult, CouchDBResult, DocProcessingResult } = require('./result');
+var fs = require('fs');
+var path = require('path');
+
 
 // Main entry point.  Creates a connection pool, on callback creates an
 // HTTP server that executes a query based on the URL parameter given.
 // The pool values shown are the default values.
-function init(response) {   
-  var response=response;
-  return new Promise((resolve,reject)=>{
-    var resolve=resolve;
-    var reject=reject;
+function init(response, callback) {
+  var response = response;
+  return new Promise((resolve, reject) => {
+    var resolve = resolve;
+    var reject = reject;
 
-  oracledb.createPool(
-    {
-      user: dbConfig.user,
-      password: dbConfig.password,
-      connectString: dbConfig.connectString
-      // Default values shown below
-      // externalAuth: false, // whether connections should be established using External Authentication
-      // poolMax: 4, // maximum size of the pool. Increase UV_THREADPOOL_SIZE if you increase poolMax
-      // poolMin: 0, // start with no connections; let the pool shrink completely
-      // poolIncrement: 1, // only grow the pool by one connection at a time
-      // poolTimeout: 60, // terminate connections that are idle in the pool for 60 seconds
-      // poolPingInterval: 60, // check aliveness of connection if in the pool for 60 seconds
-      // queueRequests: true, // let Node.js queue new getConnection() requests if all pool connections are in use
-      // queueTimeout: 60000, // terminate getConnection() calls in the queue longer than 60000 milliseconds
-      // poolAlias: 'myalias' // could set an alias to allow access to the pool via a name
-      // stmtCacheSize: 30 // number of statements that are cached in the statement cache of each connection
-    },
-    function(err, pool) {
-      if (err) {
-        response.write("createPool() error: " + err.message);
-        reject(new Error(err));
-        return;
-      }
-
-      var resolve=resolve;
-      var reject=reject;
-      
-      handleRequest(response, pool);
-
-      
-      }
-  );
- })
-}
-
-function handleRequest(response, pool) {
-
-  /*
-  html.htmlHeader(
-    response,
-    "Genesys Upgrade Advisory template tool",
-    "Example using node.js to create docx files based on predefined docx template file"
-  );
-
-  
-  if (deptid != parseInt(deptid)) {
-    handleError(
-      response,
-      'URL path "' + deptid + '" is not an integer.  Try http://localhost:' + httpPort + '/30',
-      null
-    );
-
-    return;
-  }
-*/
-
-// Checkout a connection from the pool
-  pool.getConnection(function(err, connection) {
-
-    if (err) {
-      html.handleError(response, "getConnection() error", err);
-      //reject(new Error(err));
-      return;
-    }
-
-    // console.log("Connections open: " + pool.connectionsOpen);
-    // console.log("Connections in use: " + pool.connectionsInUse);
-
-    connection.execute(
-        'SELECT * FROM view_app_versions',
-      //[deptid], // bind variable value
-      async function(err, result, resolve,reject) {
+    oracledb.createPool(
+      {
+        user: dbConfig.user,
+        password: dbConfig.password,
+        connectString: dbConfig.connectString
+        // Default values shown below
+        // externalAuth: false, // whether connections should be established using External Authentication
+        // poolMax: 4, // maximum size of the pool. Increase UV_THREADPOOL_SIZE if you increase poolMax
+        // poolMin: 0, // start with no connections; let the pool shrink completely
+        // poolIncrement: 1, // only grow the pool by one connection at a time
+        // poolTimeout: 60, // terminate connections that are idle in the pool for 60 seconds
+        // poolPingInterval: 60, // check aliveness of connection if in the pool for 60 seconds
+        // queueRequests: true, // let Node.js queue new getConnection() requests if all pool connections are in use
+        // queueTimeout: 60000, // terminate getConnection() calls in the queue longer than 60000 milliseconds
+        // poolAlias: 'myalias' // could set an alias to allow access to the pool via a name
+        // stmtCacheSize: 30 // number of statements that are cached in the statement cache of each connection
+      },
+      function (err, pool) {
         if (err) {
-          connection.close(function(err) {
-            if (err) {
-              // Just logging because handleError call below will have already
-              // ended the response.
-              console.error("execute() error release() error", err);
-            }
-          });
-          html.handleError(response, "execute() error", err);
+          response.write("createPool() error: " + err.message);
           reject(new Error(err));
           return;
         }
-        
-        //var ora_result=new OracleDBResult(result);
 
-        //html.displayTableResults(response, ora_result);
+        var resolve = resolve;
+        var reject = reject;
 
-        var res=await generateDocx(response,result,'false');
-        
-        html.displayResults(response, res, null);
 
-        /* Release the connection back to the connection pool */
-        connection.close(function(err, resolve, res) {
-          if (err) {
-            html.handleError(response, "normal release() error", err);
-          } else {
-            html.htmlFooter(response);
-          }
-          
-          //resolve(res);
-        });
+        handleRequest(response, pool, callback);
 
       }
     );
-  });
+  })
 }
+
+async function handleRequest(response, pool, callback) {
+
+  try {
+    // Checkout a connection from the pool
+    var connection = await pool.getConnection();
+    var query = fs.readFileSync(path.resolve(__dirname, 'queries/application_versions.sql'), 'utf-8');
+
+    html.displayResults(response, 'Executing against Oracle DB <br/>' + dbConfig.connectString + "<br/>" + dbConfig.user + '<br/>' + query);
+
+    var result = await connection.execute(query);
+
+    var res = await callback(response, result);
+
+    html.displayResults(response, res, null);
+
+    connection.close(function (err, resolve, res) {
+      if (err) {
+        html.handleError(response, "normal release() error", err);
+      } else {
+        html.htmlFooter(response);
+      }
+    });
+
+
+  } catch (err) {
+    html.handleError(response, "Oracle DB communication error", err);
+    //reject(new Error(err));
+    return;
+  }
+}
+
 
 
 
@@ -189,27 +150,28 @@ function generateDocx(response, result, recreateViews) {
   });
 }
 
-  /*
-   Function to create object by copying properties of another object 
-  */
-function fill_data(obj,struct){
-    //console.log(typeof obj);
+/*
+ Function to create object by copying properties of another object 
+*/
+function fill_data(obj, struct) {
+  //console.log(typeof obj);
 
-    const propNames = Object.getOwnPropertyNames(struct);
-    propNames.forEach(function(name) {
-      const desc = Object.getOwnPropertyDescriptor(struct, name);
-      Object.defineProperty(obj, name, desc);
-    });
-    return obj;
-  };
+  const propNames = Object.getOwnPropertyNames(struct);
+  propNames.forEach(function (name) {
+    const desc = Object.getOwnPropertyDescriptor(struct, name);
+    Object.defineProperty(obj, name, desc);
+  });
+  return obj;
+};
 process
-  .on('SIGTERM', function() {
+  .on('SIGTERM', function () {
     console.log("\nTerminating");
     process.exit(0);
   })
-  .on('SIGINT', function() {
+  .on('SIGINT', function () {
     console.log("\nTerminating");
     process.exit(0);
   });
 
-exports.init=init;
+exports.init = init;
+exports.generateDocx = generateDocx;

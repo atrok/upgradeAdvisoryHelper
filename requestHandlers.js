@@ -43,14 +43,17 @@ async function prepareAdvisory(response) {
     html.htmlHeader(response, 'Upgrade Advisory Helper', 'UAHelper: Prepare Upgrade Advisory Document');
     html.htmlMenu(response);
 
-    await upgradeAdvisory.init(response);
+    await upgradeAdvisory.init(response, async function(response, result){
+        var res = generateDocx(response,result,'false');
+        resolve(res);
+    });
 
     //html.htmlFooter(response);
 
 }
 
 async function testPrepareAdvisory(response, args) {
-    console.log("Request handler 'prepareAdvisory' was called.");
+    console.log("Request handler 'TestPrepareAdvisory' was called.");
     response.writeHead(200, { "Content-Type": "text/plain" });
 
     html.htmlHeader(response, 'Upgrade Advisory Helper', 'UAHelper: Test Upgrade Advisory Document');
