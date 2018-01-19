@@ -1,5 +1,6 @@
 var couchdb = require('./couchdb');
 var upgradeAdvisory = require('./upgradeAdvisory');
+var oracledb=require('./oracledb');
 var components = require('./queries/groupbycomponents');
 var html = require('./html');
 var fs = require('fs');
@@ -43,9 +44,9 @@ async function prepareAdvisory(response) {
     html.htmlHeader(response, 'Upgrade Advisory Helper', 'UAHelper: Prepare Upgrade Advisory Document');
     html.htmlMenu(response);
 
-    await upgradeAdvisory.init(response, async function(response, result){
-        var res = generateDocx(response,result,'false');
-        resolve(res);
+    await oracledb.init(response, async function(response, result){
+        return await upgradeAdvisory.generateDocx(response,result,'false');
+        
     });
 
     //html.htmlFooter(response);

@@ -1,8 +1,8 @@
-SELECT CASE
+SELECT distinct CASE
  WHEN switch_typeid IS NULL THEN application_type
  ELSE switch_type||' '||application_type
- END AS application_type, apptype_id , release, OS, os_type, os_version FROM (
-SELECT a.lc_value AS application_type, a.lc_subtype AS apptype_id , a.version AS release, a.OS, a.os_type,a.os_version, b.switch_typeid,b.switch_type,is_server FROM (
+ END AS application_type, apptype_id , release, OS, os_type /*, os_version */ FROM (
+SELECT a.lc_value AS application_type, a.lc_subtype AS apptype_id , a.version AS release, a.OS, a.os_type, a.os_version, b.switch_typeid,b.switch_type,is_server FROM (
 SELECT a.dbid,a.name,a.version,d.name AS host,d.os, d.os_type, d.os_version, b.lc_subtype,b.lc_value,a.state, a.is_server FROM cfg_application a JOIN cfg_locale b
 ON a.TYPE=b.lc_subtype
 JOIN cfg_server c ON a.dbid=c.app_dbid
